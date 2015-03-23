@@ -1,0 +1,166 @@
+<html>
+
+<head>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css">
+    <script>
+    /*
+                This method uses a couple different methods of instantiating the
+                XMLHttpRequest object. The reason we do this is so we can support
+                multiple browser (I've only tested in IE and Firefox).
+                */
+    function getXMLHTTPRequest() {
+        var request;
+
+        // Lets try using ActiveX to instantiate the XMLHttpRequest object
+        try {
+            request = new ActiveXObject("Microsoft.XMLHTTP");
+        } catch (ex1) {
+            try {
+                request = new ActiveXObject("Msxml2.XMLHTTP");
+            } catch (ex2) {
+                request = null;
+            }
+        }
+
+        // If the previous didn't work, lets check if the browser natively support XMLHttpRequest
+        if (!request && typeof XMLHttpRequest != "undefined") {
+            //The browser does, so lets instantiate the object
+            request = new XMLHttpRequest();
+        }
+
+        return request;
+    }
+
+
+    function loadURL(url, callback) {
+        var aXMLHttpRequest = getXMLHTTPRequest();
+        var allData;
+
+        if (aXMLHttpRequest) {
+            aXMLHttpRequest.open("GET", url, true);
+            aXMLHttpRequest.onreadystatechange = function(aEvt) {
+                if (aXMLHttpRequest.readyState == 4) {
+                    allData = aXMLHttpRequest.responseText;
+                    callback(allData);
+                }
+
+            };
+
+            //Lets fire off the request
+            aXMLHttpRequest.send(null);
+        } else {
+            //Oh no, the XMLHttpRequest object couldn't be instantiated.
+            alert("A problem occurred instantiating the XMLHttpRequest object.");
+        }
+    }
+
+
+    var prefix = "amucinom";
+    var valid = {
+        png: true,
+        jpg: true,
+        gif: true,
+        bmp: true
+    };
+
+    function addNew() {
+
+        var fd = new FormData();
+        var fileObj = document.getElementById('fileUpload').files[0];
+        var filename = fileObj.name;
+        var size = fileObj.size;
+
+        fd.append('date', (new Date()).toString());
+        fd.append('input', fileObj);
+        var t = filename.substring(filename.length - 3, filename.length).toLowerCase();
+
+        if (['png', 'jpg', 'gif'].indexOf(t) == -1) {
+            alert("Incorrect File -- Please upload image");
+            return;
+        }
+
+        var fileInput = prefix + new Date().getTime().toString() + "." + t;
+
+
+        fd.append('fileInput', fileInput);
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState != 4) {
+                return;
+            }
+            document.getElementById("fileUpload").value = "";
+        };
+        xhr.open("POST", "/uploadFile", true);
+        xhr.send(fd);
+    }
+
+
+
+    var allTodos;
+
+    function updateList() {
+        var url = "./listtodos";
+        var callback = function(data) {
+            var list = JSON.parse(data);
+            allTodos = list;
+            var output = "";
+            for (var i = 0; i < list.length; i++) {
+                output = output + "<p>" + list[i].newtodo + "</p>";
+                output = output + "<a href='javascript:deleteTodo(" + list[i].todoid.toString() + ")'>" + "Delete</a>";
+                output = output + "<a href='javascript:editTodo(" + list[i].todoid.toString() + ")'>" + "Edit</a>";
+                output = output + "<hr>";
+            }
+            document.getElementById("list").innerHTML = output;
+        };
+        loadURL(url, callback);
+
+    }
+
+    function deleteTodo(index) {
+        var url = "./deletetodo?index=" + encodeURIComponent(index);
+        var callback = function(data) {
+            if (data === "deleted") {
+                updateList();
+            }
+        };
+        loadURL(url, callback);
+    }
+
+    function editTodo(id, str) {
+        var newtodo = prompt("Edit todo", getTodoText(id));
+
+        var url = "./edittodo?todoid=" + encodeURIComponent(id) + "&newtodo=" + encodeURIComponent(newtodo);
+
+
+        var callback = function(data) {
+            if (data === "done") {
+                updateList();
+            }
+        };
+        loadURL(url, callback);
+    }
+
+    function getTodoText(id) {
+        for (var i = 0; i < allTodos.length; i++) {
+            if (parseInt(allTodos[i].todoid) == id) {
+                return allTodos[i].newtodo;
+            }
+        }
+        return "";
+    }
+    </script>
+</head>
+
+<body onload='updateList()'>
+    <div class="container">
+        <h1> Photo Uploader </h1>
+        <input type='file' id='fileUpload' onchange='addNew()'>
+        <hr>
+        <div id="list">
+            list is empty
+        </div>
+    </div>
+</body>
+
+</html>
